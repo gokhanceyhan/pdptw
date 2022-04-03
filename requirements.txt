@@ -1,0 +1,9 @@
+absl-py==1.0.0
+haversine==2.3.0
+numpy==1.19.4
+ortools==9.3.10497
+pandas==1.1.4
+protobuf==3.20.0
+python-dateutil==2.8.1
+pytz==2020.4
+six==1.15.0

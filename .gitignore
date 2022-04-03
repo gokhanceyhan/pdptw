@@ -7,5 +7,5 @@ pdptw_venv/
 
 .vscode/
 
-*.txt
+notes.txt
 *.csv
