@@ -28,6 +28,7 @@ class Solver:
             index = routing.Start(vehicle_id)
             plan_output = 'Route for vehicle {}:\n'.format(vehicle_id)
             route_distance = 0
+            route_travel_time = 0
             route_load = 0
             while not routing.IsEnd(index):
                 time_var = time_dimension.CumulVar(index)
@@ -39,6 +40,7 @@ class Solver:
                 previous_index = index
                 index = solution.Value(routing.NextVar(index))
                 route_distance += distance_dimension.GetTransitValue(previous_index, index, vehicle_id)
+                route_travel_time += time_dimension.GetTransitValue(previous_index, index, vehicle_id)
                 delivery_node = node_index in self._instance.delivery_location_node_indices()
                 if delivery_node:
                     target_delivery_time = self._instance.time_windows()[node_index][1]
@@ -67,7 +69,6 @@ class Solver:
             print(plan_output)
             total_distance += route_distance
             max_route_distance = max(max_route_distance, route_distance)
-            route_travel_time = route_distance / (1000 * DRIVER_SPEED) * 3600
             total_travel_time += route_travel_time
             max_route_travel_time = max(max_route_travel_time, route_travel_time)
         print('Total distance of all routes: {}m'.format(total_distance))
@@ -144,23 +145,28 @@ class Solver:
             # max pickup distance hard constraint
             routing.solver().Add(distance_dimension.TransitVar(pickup_index) <= MAX_PICKUP_DISTANCE_IN_METERS)
             
+        time_callback_indices = []
+        for driver_index in range(self._instance.num_drivers()):
 
-        def time_callback(from_index, to_index):
-            """Returns the travel time between the two nodes."""
-            # Convert from routing variable Index to time matrix NodeIndex.
-            from_node = manager.IndexToNode(from_index)
-            to_node = manager.IndexToNode(to_index)
-            distance_in_m = self._instance.distance_matrix()[from_node][to_node]
-            distance_in_km = distance_in_m / 1000
-            time_in_h = distance_in_km / DRIVER_SPEED
-            time_in_s = time_in_h * 3600
-            return int(time_in_s)
+            def time_callback(from_index, to_index, driver_idx=driver_index):
+                """Returns the travel time between the two nodes."""
+                # Convert from routing variable Index to time matrix NodeIndex.
+                from_node = manager.IndexToNode(from_index)
+                to_node = manager.IndexToNode(to_index)
+                distance_in_m = self._instance.distance_matrix()[from_node][to_node]
+                distance_in_km = distance_in_m / 1000
+                vehicle_type = self._instance.driver_vehicle_type(driver_idx)
+                speed = VEHICLE_TYPE_2_DRIVER_SPEED[vehicle_type]
+                time_in_h = distance_in_km / speed
+                time_in_s = time_in_h * 3600
+                return int(time_in_s)
 
-        time_callback_index = routing.RegisterTransitCallback(time_callback)
+            time_callback_index = routing.RegisterTransitCallback(time_callback)
+            time_callback_indices.append(time_callback_index)
 
         time = 'Time'
-        routing.AddDimension(
-            time_callback_index,
+        routing.AddDimensionWithVehicleTransits(
+            time_callback_indices,
             big_m,  # allow waiting time
             big_m,  # maximum time per vehicle
             False,  # Don't force start cumul to zero.

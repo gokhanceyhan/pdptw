@@ -37,8 +37,8 @@ class Instance:
         self._create_time_windows()
 
     def _create_capacitites(self):
-        num_drivers = len(self._driver_df)
-        self._capacities = [DRIVER_CAPACITY] * num_drivers
+        self._capacities = [
+            VEHICLE_TYPE_2_DRIVER_CAPACITY[driver['vehicle']] for _, driver in self._driver_df.iterrows()]
 
     def _create_pickup_nodes(self):
         num_drivers = len(self._driver_df)
@@ -250,3 +250,9 @@ class Instance:
 
     def time_windows(self):
         return self._time_windows
+
+    def num_drivers(self):
+        return len(self._driver_df)
+
+    def driver_vehicle_type(self, driver_idx):
+        return self._driver_df.loc[driver_idx, 'vehicle']
