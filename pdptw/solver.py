@@ -143,7 +143,8 @@ class Solver:
                 distance_dimension.CumulVar(pickup_index) <=
                 distance_dimension.CumulVar(delivery_index))
             # max pickup distance hard constraint
-            routing.solver().Add(distance_dimension.TransitVar(pickup_index) <= MAX_PICKUP_DISTANCE_IN_METERS)
+            distance_dimension.TransitVar(pickup_index).SetMax(MAX_PICKUP_DISTANCE_IN_METERS)
+            
             
         time_callback_indices = []
         for driver_index in range(self._instance.num_drivers()):
