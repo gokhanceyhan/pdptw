@@ -15,7 +15,8 @@ class Instance:
         self._demands = None
         self._pickup_location_node_indices = None
         self._delivery_location_node_indices = None
-        self._depot_location_node_index = 0
+        self._driver_start_node_indices = None
+        self._driver_end_node_indices = None
         self._distance_matrix = None
         self._driver_df = None
         self._driver_id_2_start_location_node_index = {}
@@ -30,6 +31,7 @@ class Instance:
         self._read_orders()
         self._create_capacitites()
         self._create_pickup_nodes()
+        self._create_driver_start_end_nodes()
         self._create_delivery_nodes()
         self._create_demands()
         self._create_distance_matrix()
@@ -43,22 +45,21 @@ class Instance:
     def _create_pickup_nodes(self):
         num_drivers = len(self._driver_df)
         num_orders = len(self._order_df)
-        self._pickup_location_node_indices = [
-            i + 2 * num_drivers + 1 for i in range(num_orders)]
+        self._pickup_location_node_indices = [i + 2 * num_drivers for i in range(num_orders)]
 
     def _create_delivery_nodes(self):
         num_drivers = len(self._driver_df)
         num_orders = len(self._order_df)
-        self._delivery_location_node_indices = [
-            i + num_orders + 2 * num_drivers + 1 for i in range(num_orders)]
+        self._delivery_location_node_indices = [i + num_orders + 2 * num_drivers for i in range(num_orders)]
+
+    def _create_driver_start_end_nodes(self):
+        self._driver_start_node_indices = [i for i in range(self.num_drivers())]
+        self._driver_end_node_indices = [i + self.num_drivers() for i in range(self.num_drivers())]
 
     def _create_demands(self):
-        num_drivers = len(self._driver_df)
-        num_orders = len(self._order_df)
-        # zero demand for the depot
-        demands = [0]
+        demands = []
         # zero demand for the driver start / end locations
-        demands.extend([0] * num_drivers * 2)
+        demands.extend([0] * self.num_drivers() * 2)
         # positive demand for order pickup num_locations
         pickup_demands = list(self._order_df["no_of_items"])
         demands.extend(pickup_demands)
@@ -71,23 +72,14 @@ class Instance:
         num_orders = len(self._order_df)
         big_m = 1_000_000
         distances = []
-        # add the distances from the central depot
-        location_node_index = 0
-        from_depot_to_depot = [big_m]
-        from_depot_to_driver_start_locations = [0] * num_drivers
-        from_depot_to_driver_end_locations = [big_m] * num_drivers
-        from_depot_to_order_locations = [big_m] * num_orders * 2
-        from_depot = from_depot_to_depot + from_depot_to_driver_start_locations + \
-            from_depot_to_driver_end_locations + from_depot_to_order_locations
-        distances.append(from_depot)
+        
         # add distances from the driver locations
-        location_node_index += 1
+        location_node_index = 0
         for driver_id, driver in self._driver_df.iterrows():
             # for driver start location
             self._driver_id_2_start_location_node_index[driver_id] = location_node_index
             start_location = (driver["start_location_lat"], driver["start_location_long"])
-            # to depot
-            distances_ = [big_m]
+            distances_ = []
             # to driver start locations
             distances_.extend([big_m] * num_drivers)
             # to driver end locations
@@ -105,8 +97,7 @@ class Instance:
         for driver_id, driver in self._driver_df.iterrows():
             # for driver end location
             self._driver_id_2_end_location_node_index[driver_id] = location_node_index
-            # to depot
-            distances_ = [0]
+            distances_ = []
             # to all driver and order locations
             distances_.extend([big_m] * (num_drivers + num_orders) * 2)
             distances.append(distances_)
@@ -118,8 +109,7 @@ class Instance:
             # for pickup location
             self._order_id_2_pickup_location_node_index[order_id] = location_node_index
             pickup_location = (order["restaurant_lat"], order["restaurant_long"])
-            # to depot
-            distances_ = [big_m]
+            distances_ = []
             # to driver start locations
             distances_.extend([big_m] * num_drivers * 2)
             # to order locations
@@ -138,8 +128,7 @@ class Instance:
             # for delivery location
             self._order_id_2_delivery_location_node_index[order_id] = location_node_index
             delivery_location = (order["customer_lat"], order["customer_long"])
-            # to depot
-            distances_ = [big_m]
+            distances_ = []
             # to driver start locations
             distances_.extend([big_m] * num_drivers)
             # to driver end locations
@@ -160,13 +149,6 @@ class Instance:
 
     def _create_pickup_and_deliveries(self):
         pickup_and_deliveries = []
-        # for driver start and end locations
-        for driver_id in self._driver_df.index.values:
-            start = self._driver_id_2_start_location_node_index[driver_id]
-            end = self._driver_id_2_end_location_node_index[driver_id]
-            pickup_and_deliveries_ = [start, end]
-            pickup_and_deliveries.append(pickup_and_deliveries_)
-        # for regular order pickup and delivery locations
         for order_id in self._order_df.index.values:
             pickup_and_delivery = []
             pickup = self._order_id_2_pickup_location_node_index[order_id]
@@ -180,9 +162,6 @@ class Instance:
         time_windows = []
         start_time = 0
         end_time = 10_000_000
-        # for the depot
-        depot_time_window = (start_time, end_time)
-        time_windows.append(depot_time_window)
         # for the driver start locations
         for shift_start_time in list(self._driver_df["shift_start_sec"]):
             time_windows.append((shift_start_time, end_time))
@@ -214,8 +193,11 @@ class Instance:
     def delivery_location_node_indices(self):
         return self._delivery_location_node_indices
 
-    def depot_location_node_index(self):
-        return self._depot_location_node_index
+    def driver_start_node_indices(self):
+        return self._driver_start_node_indices
+
+    def driver_end_node_indices(self):
+        return self._driver_end_node_indices
 
     def demands(self):
         return self._demands

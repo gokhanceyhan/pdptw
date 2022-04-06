@@ -93,7 +93,9 @@ class Solver:
         depot_node_index = 0
 
         # Create the routing index manager
-        manager = pywrapcp.RoutingIndexManager(num_nodes, num_drivers, depot_node_index)
+        manager = pywrapcp.RoutingIndexManager(
+            num_nodes, num_drivers, self._instance.driver_start_node_indices(), 
+            self._instance.driver_end_node_indices())
         # Create Routing Model
         routing = pywrapcp.RoutingModel(manager)
 
@@ -174,11 +176,16 @@ class Solver:
             time)
         time_dimension = routing.GetDimensionOrDie(time)
 
-        # Add time window constraints for each location except depot.
+        # Add time window constraints for each pickup and delivery locations.
         for location_node_index, time_window in enumerate(self._instance.time_windows()):
-            if location_node_index == 0:
-                continue
-            index = manager.NodeToIndex(location_node_index)
+            if location_node_index in self._instance.driver_start_node_indices():
+                vehicle_index = location_node_index
+                index = routing.Start(vehicle_index)
+            elif location_node_index in self._instance.driver_end_node_indices():
+                vehicle_index = location_node_index - self._instance.num_drivers()
+                index = routing.End(vehicle_index)
+            else:
+                index = manager.NodeToIndex(location_node_index)
             lb = time_window[0]
             ub = time_window[1]
             if location_node_index in self._instance.delivery_location_node_indices():
