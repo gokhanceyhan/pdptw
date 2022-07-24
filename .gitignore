@@ -6,6 +6,3 @@ __pycache__/
 pdptw_venv/
 
 .vscode/
-
-notes.txt
-*.csv

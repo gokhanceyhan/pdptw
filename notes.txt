@@ -1,0 +1,28 @@
+Data:
+- vehicle based travel time estimates (done)
+
+Constraints:
+- max pickup distance
+    - hard limit (done)
+    - soft limit with penalty (done)
+
+- job - driver eligibility constraint (Consider using 'routing.SetAllowedVehiclesForIndex')
+    - vehicle type requirements
+    - alcohol policy
+
+- pooling constraints:
+    - max jobs
+    - max delivery distance
+    - job pooling eligibility
+
+Objectives with non-linear penalty schemes:
+- pickup/delivery delay
+- pickup distance
+- pickup duration
+- fib time
+
+
+Issues:
+- Fix the driver start and end locations and time windows. (Done)
+    - Does the current implementation of dummy pickup and delivery nodes ensure this?
+    - Maybe there is a way to specify the start and end locations
